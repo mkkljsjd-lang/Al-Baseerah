@@ -4,8 +4,6 @@ import { AnalysisScope } from "../types";
 
 /**
  * Utility function to handle retries with exponential backoff.
- * This ensures the app is resilient against transient network issues or rate limits
- * common in cloud deployment environments.
  */
 const fetchWithRetry = async (fn: () => Promise<any>, maxRetries = 3) => {
   let lastError;
@@ -14,18 +12,9 @@ const fetchWithRetry = async (fn: () => Promise<any>, maxRetries = 3) => {
       return await fn();
     } catch (error: any) {
       lastError = error;
-      
-      // Extract status code if available
       const status = error?.status || error?.response?.status;
-      
-      // Only retry on rate limits (429) or potential server/network hiccups (5xx or unknown)
       const isRetryable = status === 429 || (status >= 500 && status < 600) || !status;
-      
-      if (!isRetryable) {
-        throw error;
-      }
-      
-      // Exponential backoff with jitter
+      if (!isRetryable) throw error;
       const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
       console.warn(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay)}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -34,14 +23,43 @@ const fetchWithRetry = async (fn: () => Promise<any>, maxRetries = 3) => {
   throw lastError;
 };
 
+export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API_KEY missing");
+
+  const ai = new GoogleGenAI({ apiKey });
+  const model = "gemini-3-flash-preview";
+
+  return fetchWithRetry(async () => {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                data: base64Audio,
+                mimeType: mimeType,
+              },
+            },
+            {
+              text: "Transcribe the following Arabic or Urdu audio. Return ONLY the transcribed text. If the audio is unclear, return an empty string. No explanations.",
+            },
+          ],
+        },
+      ],
+    });
+
+    return response.text?.trim() || "";
+  });
+};
+
 export const analyzeWord = async (word: string, scope: AnalysisScope) => {
-  // Environment Check: Essential for first-time deployments on Netlify/Vercel
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("Linguistic Engine Error: API_KEY is missing. Please set it in your environment variables dashboard.");
   }
 
-  // Use gemini-3-flash-preview for high speed and reliability in a web context
   const ai = new GoogleGenAI({ apiKey });
   const model = "gemini-3-flash-preview";
   
@@ -204,7 +222,6 @@ export const analyzeWord = async (word: string, scope: AnalysisScope) => {
 
       let text = response.text.trim();
       
-      // Standardize JSON extraction
       if (text.includes("{")) {
         const start = text.indexOf("{");
         const end = text.lastIndexOf("}") + 1;

@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { transcribeAudio } from '../services/geminiService';
 
 interface SearchInputProps {
   onSearch: (word: string) => void;
@@ -9,11 +10,102 @@ interface SearchInputProps {
 
 const SearchInput: React.FC<SearchInputProps> = ({ onSearch, disabled, isHeaderVariant = false }) => {
   const [value, setValue] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (value.trim()) {
       onSearch(value.trim());
+    }
+  };
+
+  const startRecording = async () => {
+    setPermissionError(null);
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setPermissionError("آپ کا براؤزر مائیکروفون کو سپورٹ نہیں کرتا۔");
+      return;
+    }
+
+    try {
+      // Constraints can sometimes affect permission. Keep it simple.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Determine supported mime type (Safari/iOS compatibility)
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm' 
+        : MediaRecorder.isTypeSupported('audio/mp4') 
+          ? 'audio/mp4' 
+          : 'audio/ogg';
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        setIsTranscribing(true);
+        try {
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = async () => {
+            const base64Audio = (reader.result as string).split(',')[1];
+            // Pass the detected mimeType to the service
+            const transcription = await transcribeAudio(base64Audio, mimeType);
+            if (transcription) {
+              setValue(transcription);
+              // Auto search after a small delay if it looks like a valid term
+              if (transcription.length > 1) {
+                setTimeout(() => onSearch(transcription), 500);
+              }
+            }
+            setIsTranscribing(false);
+          };
+        } catch (error) {
+          console.error("Transcription error:", error);
+          setIsTranscribing(false);
+        }
+        // Stop all tracks to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err: any) {
+      console.error("Microphone access error:", err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionError("مائیکروفون تک رسائی مسترد کر دی گئی۔ براہ کرم براؤزر کی سیٹنگز میں اجازت دیں۔");
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setPermissionError("کوئی مائیکروفون نہیں ملا۔");
+      } else {
+        setPermissionError("مائیکروفون تک رسائی میں مسئلہ پیش آیا۔");
+      }
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleVoiceButtonClick = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
     }
   };
 
@@ -25,25 +117,56 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, disabled, isHeaderV
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="عربی لفظ یہاں لکھیں..."
+            placeholder={isRecording ? "سن رہا ہوں... (بولنا بند کرنے کے لیے مائیک دبائیں)" : "عربی لفظ یہاں لکھیں..."}
             className={`
-              w-full bg-white dark:bg-emerald-900/40 border border-emerald-100 dark:border-emerald-800 rounded-2xl py-3 md:py-4 pr-6 md:pr-8 pl-24 md:pl-36 text-lg md:text-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all text-right arabic text-emerald-950 dark:text-emerald-50 placeholder:text-emerald-900/30 dark:placeholder:text-emerald-100/20 placeholder:text-sm md:placeholder:text-base urdu
+              w-full bg-white dark:bg-emerald-900/40 border border-emerald-100 dark:border-emerald-800 rounded-2xl py-3 md:py-4 pr-16 md:pr-20 pl-24 md:pl-36 text-lg md:text-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] transition-all text-right arabic text-emerald-950 dark:text-emerald-50 placeholder:text-emerald-900/30 dark:placeholder:text-emerald-100/20 placeholder:text-sm md:placeholder:text-base urdu
               ${isHeaderVariant ? 'focus:border-amber-400' : 'focus:border-emerald-500 dark:focus:border-emerald-400'}
-              ${disabled 
+              ${(disabled || isTranscribing) 
                 ? 'opacity-70 cursor-wait' 
                 : 'focus:bg-white dark:focus:bg-emerald-900/60 focus:ring-4 focus:ring-amber-500/5'}
+              ${isRecording ? 'ring-4 ring-amber-500/20 border-amber-500' : ''}
+              ${permissionError ? 'border-red-400 focus:border-red-500' : ''}
             `}
-            disabled={disabled}
+            disabled={disabled || isTranscribing}
             dir="rtl"
           />
           
+          {/* Microphone Button */}
+          <button
+            type="button"
+            onClick={handleVoiceButtonClick}
+            disabled={disabled || isTranscribing}
+            className={`
+              absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all z-30
+              ${isRecording 
+                ? 'bg-amber-500 text-white animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.6)]' 
+                : 'bg-emerald-50 dark:bg-emerald-800/50 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-700/50'}
+              ${isTranscribing ? 'opacity-50 pointer-events-none' : ''}
+              ${permissionError ? 'ring-2 ring-red-400 shadow-lg' : ''}
+            `}
+            title="صوتی تلاش"
+          >
+            {isTranscribing ? (
+              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            ) : isRecording ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            )}
+          </button>
+
           <div className="absolute left-1.5 md:left-2 top-1/2 -translate-y-1/2 z-20">
             <button
               type="submit"
-              disabled={disabled || !value.trim()}
+              disabled={disabled || !value.trim() || isTranscribing}
               className="bg-[#044434] dark:bg-emerald-600 hover:bg-[#065a46] dark:hover:bg-emerald-500 hover:scale-[1.02] active:scale-95 text-white px-4 md:px-8 py-2 md:py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center min-w-[90px] md:min-w-[120px]"
             >
-              {disabled ? (
+              {(disabled || isTranscribing) ? (
                 <div className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></span>
                   <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.2s]"></span>
@@ -56,15 +179,24 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, disabled, isHeaderV
           </div>
         </div>
       </form>
+
+      {permissionError && (
+        <div className="mt-3 text-right px-4 animate-in fade-in slide-in-from-top-1">
+          <p className="urdu text-red-500 dark:text-red-400 text-sm font-bold flex items-center justify-end gap-2">
+            <span>{permissionError}</span>
+            <span className="text-base">⚠️</span>
+          </p>
+        </div>
+      )}
       
-      <div className={`mt-4 md:mt-6 flex flex-wrap justify-center items-center gap-3 md:gap-5 transition-opacity duration-300 ${isHeaderVariant ? 'text-white' : 'text-emerald-900/40 dark:text-emerald-100/30'} ${disabled ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`mt-4 md:mt-6 flex flex-wrap justify-center items-center gap-3 md:gap-5 transition-opacity duration-300 ${isHeaderVariant ? 'text-white' : 'text-emerald-900/40 dark:text-emerald-100/30'} ${(disabled || isTranscribing) ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
         <span className="urdu text-base md:text-xl font-bold">مثالیں:</span>
         <div className="flex gap-4 md:gap-6 items-center">
           <button 
             type="button"
             className={`arabic text-xl md:text-2xl hover:text-amber-400 transition-all cursor-pointer hover:scale-110 active:scale-90 ${isHeaderVariant ? 'text-white/90' : 'text-emerald-800 dark:text-emerald-300'}`} 
-            onClick={() => setValue('الْقُرْآن')}
-            disabled={disabled}
+            onClick={() => { setValue('الْقُرْآن'); setPermissionError(null); }}
+            disabled={disabled || isTranscribing}
           >
             الْقُرْآن
           </button>
@@ -72,8 +204,8 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, disabled, isHeaderV
           <button 
             type="button"
             className={`arabic text-xl md:text-2xl hover:text-amber-400 transition-all cursor-pointer hover:scale-110 active:scale-90 ${isHeaderVariant ? 'text-white/90' : 'text-emerald-800 dark:text-emerald-300'}`} 
-            onClick={() => setValue('كَتَبَ')}
-            disabled={disabled}
+            onClick={() => { setValue('كَتَبَ'); setPermissionError(null); }}
+            disabled={disabled || isTranscribing}
           >
             كَتَبَ
           </button>
@@ -81,8 +213,8 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, disabled, isHeaderV
           <button 
             type="button"
             className={`arabic text-xl md:text-2xl hover:text-amber-400 transition-all cursor-pointer hover:scale-110 active:scale-90 ${isHeaderVariant ? 'text-white/90' : 'text-emerald-800 dark:text-emerald-300'}`} 
-            onClick={() => setValue('نَصَرَ')}
-            disabled={disabled}
+            onClick={() => { setValue('نَصَرَ'); setPermissionError(null); }}
+            disabled={disabled || isTranscribing}
           >
             نَصَرَ
           </button>
