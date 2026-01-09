@@ -6,6 +6,6 @@
   "description": "Advanced Islamic and Arabic Grammar Analyzer",
   "scripts": {
     "start": "serve .",
-    "build": "mkdir -p public && cp -rf index.html index.tsx metadata.json types.ts services components public/"
+    "build": "mkdir -p public && cp -rf index.html index.tsx App.tsx types.ts metadata.json services components public/"
   }
 }
