@@ -6,6 +6,6 @@
   "description": "Advanced Islamic and Arabic Grammar Analyzer",
   "scripts": {
     "start": "serve .",
-    "build": "echo 'No build step required for ESM-only project'"
+    "build": "mkdir -p public && cp -rf index.html index.tsx metadata.json types.ts services components public/"
   }
 }
