@@ -6,9 +6,12 @@ interface BookCoverProps {
   author?: string;
   color?: 'emerald' | 'amber' | 'blue' | 'crimson';
   icon?: string;
+  language?: 'ur' | 'en';
 }
 
-const BookCover: React.FC<BookCoverProps> = ({ title, author, color = 'emerald', icon = '📖' }) => {
+const BookCover: React.FC<BookCoverProps> = ({ title, author, color = 'emerald', icon = '📖', language = 'ur' }) => {
+  const isUrdu = language === 'ur';
+
   const colorClasses = {
     emerald: 'bg-emerald-800 border-emerald-900 shadow-emerald-950/20',
     amber: 'bg-amber-700 border-amber-800 shadow-amber-900/20',
@@ -23,7 +26,6 @@ const BookCover: React.FC<BookCoverProps> = ({ title, author, color = 'emerald',
     crimson: 'bg-red-400/20',
   };
 
-  // Enhanced color-coded glow shadows for higher visibility
   const glowShadows = {
     emerald: 'group-hover:shadow-[0_10px_60px_rgba(16,185,129,0.5)]',
     amber: 'group-hover:shadow-[0_10px_60px_rgba(245,158,11,0.6)]',
@@ -41,7 +43,7 @@ const BookCover: React.FC<BookCoverProps> = ({ title, author, color = 'emerald',
         group-hover:rotate-y-[-42deg] group-hover:scale-[1.12] group-hover:brightness-125 preserve-3d
       `}>
         {/* Spine detail */}
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-white/10"></div>
+        <div className={`absolute ${isUrdu ? 'left-0' : 'right-0'} top-0 bottom-0 w-1 bg-white/10`}></div>
         
         {/* Content */}
         <div className="absolute inset-0 p-4 flex flex-col items-center justify-between text-center backface-hidden">
@@ -50,10 +52,10 @@ const BookCover: React.FC<BookCoverProps> = ({ title, author, color = 'emerald',
                {icon}
              </div>
              <div className="flex-1 flex items-center justify-center">
-               <h4 className="urdu text-white text-base font-bold leading-tight line-clamp-3 transition-colors duration-500">{title}</h4>
+               <h4 className={`text-white text-base font-bold leading-tight line-clamp-3 transition-colors duration-500 ${isUrdu ? 'urdu' : ''}`}>{title}</h4>
              </div>
              {author && (
-               <p className="urdu text-white/40 text-[10px] mt-2 border-t border-white/5 pt-1 w-full">{author}</p>
+               <p className={`text-white/40 text-[10px] mt-2 border-t border-white/5 pt-1 w-full ${isUrdu ? 'urdu' : ''}`}>{author}</p>
              )}
           </div>
         </div>
@@ -62,23 +64,6 @@ const BookCover: React.FC<BookCoverProps> = ({ title, author, color = 'emerald',
         <div className="absolute inset-0 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/leather.png')] opacity-30 mix-blend-overlay"></div>
         <div className={`absolute inset-0 pointer-events-none ${accentClasses[color]} rounded-r-lg`}></div>
       </div>
-      
-      {/* 3D Page detail - becomes visible as cover tilts */}
-      <div className="absolute top-[2%] bottom-[2%] left-full w-[16px] bg-gray-100 border border-gray-300 rounded-r shadow-sm origin-left rotate-y-[90deg] preserve-3d group-hover:translate-x-[-4px] transition-transform duration-700"></div>
-      
-      <style>{`
-        .perspective-1200 { perspective: 1200px; }
-        .preserve-3d { transform-style: preserve-3d; }
-        .backface-hidden { backface-visibility: hidden; }
-        
-        /* Ensure the manual rotate-y works with tailwind group-hover prefix */
-        .group:hover .group-hover\:rotate-y-\[-42deg\] {
-           transform: rotateY(-42deg) scale(1.12);
-        }
-        
-        .rotate-y-\[-42deg\] { transform: rotateY(-42deg); }
-        .rotate-y-\[90deg\] { transform: rotateY(90deg); }
-      `}</style>
     </div>
   );
 };

@@ -31,23 +31,22 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
   const model = "gemini-3-flash-preview";
 
   return fetchWithRetry(async () => {
+    // Fix: Using object format for contents as per latest SDK guidelines
     const response = await ai.models.generateContent({
       model,
-      contents: [
-        {
-          parts: [
-            {
-              inlineData: {
-                data: base64Audio,
-                mimeType: mimeType,
-              },
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Audio,
+              mimeType: mimeType,
             },
-            {
-              text: "Transcribe the following Arabic or Urdu audio. Return ONLY the transcribed text. If the audio is unclear, return an empty string. No explanations.",
-            },
-          ],
-        },
-      ],
+          },
+          {
+            text: "Transcribe the following Arabic or Urdu audio. Return ONLY the transcribed text. If the audio is unclear, return an empty string. No explanations.",
+          },
+        ],
+      },
     });
 
     return response.text?.trim() || "";
