@@ -9,6 +9,7 @@ import DigitalLibrary from './components/DigitalLibrary';
 import AuthModal from './components/AuthModal';
 import InquiryForm from './components/InquiryForm';
 import AdminPanel from './components/AdminPanel';
+import MobileGuide from './components/MobileGuide';
 import { AnalysisScope, AnalysisResult } from './types';
 import { analyzeWord } from './services/geminiService';
 import { logSearchHistory, getRecentSearches, getCachedAnalysis, cacheAnalysis, supabase, signOut } from './services/supabaseService';
@@ -42,6 +43,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<string[]>([]);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'connecting' | 'setup_required'>('connecting');
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isMobileGuideOpen, setIsMobileGuideOpen] = useState(false);
   const [language, setLanguage] = useState<'ur' | 'en'>(() => {
     return (localStorage.getItem('language') as 'ur' | 'en') || 'ur';
   });
@@ -150,6 +152,13 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const handleShareWhatsApp = () => {
+    const text = language === 'ur' 
+      ? `السلام علیکم! میں نے ایک بہترین عربی اور اردو لسانی تجزیہ کار ایپ "البصیرہ" استعمال کی ہے۔ آپ بھی اسے یہاں دیکھ سکتے ہیں: ${window.location.href}`
+      : `Assalam-o-Alaikum! I've been using "Al Baseerah", an advanced Arabic/Urdu Linguistic Analyzer. Check it out here: ${window.location.href}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   const addToHistory = async (word: string) => {
     setHistory(prev => {
       const filtered = prev.filter(item => item !== word);
@@ -230,6 +239,7 @@ const App: React.FC = () => {
         toggleLanguage={toggleLanguage}
         onLoginClick={() => setIsAuthModalOpen(true)}
         onAdminClick={() => setIsAdminOpen(true)}
+        onMobileGuideClick={() => setIsMobileGuideOpen(true)}
       />
       
       <AuthModal 
@@ -238,8 +248,14 @@ const App: React.FC = () => {
         onSuccess={() => loadHistory()} 
         language={language}
       />
+
+      <MobileGuide 
+        isOpen={isMobileGuideOpen} 
+        onClose={() => setIsMobileGuideOpen(false)} 
+        language={language} 
+      />
       
-      {isAdminOpen && <AdminPanel onClose={() => setIsAdminOpen(false)} />}
+      {isAdminOpen && <AdminPanel language={language} onClose={() => setIsAdminOpen(false)} />}
       
       <Header onSearch={handleSearch} loading={loading} user={user} language={language} />
       
@@ -354,6 +370,32 @@ const App: React.FC = () => {
                   {language === 'ur' ? "عربی نحو میں ہر حرف اور لفظ کے کردار کو گہرائی سے سمجھیں۔" : "Deeply understand the role of every letter and word in Arabic syntax."}
                 </p>
               </div>
+            </div>
+
+            {/* Share Knowledge Section */}
+            <div className="max-w-4xl mx-auto mt-16 md:mt-24 p-8 md:p-12 bg-gradient-to-br from-amber-500 to-amber-600 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-white">
+                  <div className={`text-center md:text-left ${language === 'ur' ? 'md:text-right' : ''}`}>
+                     <h3 className={`text-3xl md:text-4xl font-black mb-4 ${language === 'ur' ? 'urdu' : ''}`}>
+                       {language === 'ur' ? 'علم پھیلائیں، صدقہ جاریہ بنائیں' : 'Spread Knowledge, Earn Reward'}
+                     </h3>
+                     <p className={`text-lg md:text-xl opacity-90 max-w-xl ${language === 'ur' ? 'urdu' : ''}`}>
+                       {language === 'ur' 
+                         ? 'اس علمی کاوش کو اپنے دوستوں اور اساتذہ کے ساتھ شیئر کریں تاکہ وہ بھی اس سے فائدہ اٹھا سکیں۔' 
+                         : 'Share this scholarly effort with friends and teachers so they can benefit too.'}
+                     </p>
+                  </div>
+                  <button 
+                    onClick={handleShareWhatsApp}
+                    className="flex items-center gap-4 bg-white text-amber-600 px-8 py-4 rounded-2xl font-black text-xl shadow-xl hover:scale-105 active:scale-95 transition-all group-hover:shadow-white/20"
+                  >
+                    <span className={language === 'ur' ? 'urdu' : ''}>{language === 'ur' ? 'واٹس ایپ پر شیئر کریں' : 'Share on WhatsApp'}</span>
+                    <span className="text-3xl">💬</span>
+                  </button>
+               </div>
+               {/* Background Decorative Element */}
+               <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+               <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10"></div>
             </div>
             
             <InquiryForm language={language} />

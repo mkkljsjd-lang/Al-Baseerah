@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { signOut } from '../services/supabaseService';
 
@@ -12,6 +12,7 @@ interface NavbarProps {
   toggleLanguage: () => void;
   onLoginClick: () => void;
   onAdminClick: () => void;
+  onMobileGuideClick: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({ 
@@ -22,8 +23,24 @@ const Navbar: React.FC<NavbarProps> = ({
   language, 
   toggleLanguage, 
   onLoginClick, 
-  onAdminClick 
+  onAdminClick,
+  onMobileGuideClick
 }) => {
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShowCopyFeedback(true);
+    setTimeout(() => setShowCopyFeedback(false), 2000);
+  };
+
+  const handleWhatsAppShare = () => {
+    const text = language === 'ur' 
+      ? `السلام علیکم! میں نے ایک بہترین عربی اور اردو لسانی تجزیہ کار ایپ "البصیرہ" استعمال کی ہے۔ آپ بھی اسے یہاں دیکھ سکتے ہیں: ${window.location.href}`
+      : `Assalam-o-Alaikum! I've been using "Al Baseerah", an advanced Arabic/Urdu Linguistic Analyzer. Check it out here: ${window.location.href}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   return (
     <nav className="sticky top-0 z-[100] w-full bg-[#044434] dark:bg-emerald-950 border-b border-emerald-800/30 shadow-lg px-4 md:px-6 py-3 transition-colors duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -46,37 +63,61 @@ const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <div className="hidden lg:flex items-center gap-8 text-white/90 font-bold">
-          <a href="#" onClick={(e) => {e.preventDefault(); onHome?.();}} className={`hover:text-amber-400 transition-colors ${language === 'ur' ? 'urdu' : 'text-sm'}`}>
-            {language === 'ur' ? 'مرکزِ تحقیق' : 'Research Center'}
-          </a>
-          
+        {/* Navigation Links - Desktop Only */}
+        <div className="hidden lg:flex items-center gap-4 text-white/90 font-bold">
           <button 
-            onClick={onAdminClick}
-            className={`px-4 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-all border border-amber-500/30 text-amber-400 flex items-center gap-2 ${language === 'ur' ? 'urdu' : 'text-sm'}`}
+            onClick={handleWhatsAppShare}
+            className={`px-3 py-1.5 bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white rounded-lg transition-all border border-green-500/30 flex items-center gap-2 ${language === 'ur' ? 'urdu' : 'text-sm'}`}
           >
-            <span>{language === 'ur' ? 'ڈیش بورڈ' : 'Dashboard'}</span>
-            <span className="text-xs">⚙️</span>
+            <span>{language === 'ur' ? 'شیئر کریں' : 'Share'}</span>
+            <span className="text-lg">💬</span>
           </button>
-          
-          <a href="#" className={`hover:text-amber-400 transition-colors ${language === 'ur' ? 'urdu' : 'text-sm'}`}>
-            {language === 'ur' ? 'کتب خانہ' : 'Library'}
-          </a>
+
+          <button 
+            onClick={onMobileGuideClick}
+            className={`px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-all border border-emerald-500/30 text-emerald-400 flex items-center gap-2 ${language === 'ur' ? 'urdu' : 'text-sm'}`}
+          >
+            <span>{language === 'ur' ? 'ایپ حاصل کریں' : 'Get App'}</span>
+            <span className="text-xs">📱</span>
+          </button>
+
+          <button 
+            onClick={handleCopyLink}
+            className={`relative px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-all border border-white/10 text-white flex items-center gap-2 ${language === 'ur' ? 'urdu' : 'text-sm'}`}
+          >
+            {showCopyFeedback ? (
+              <span className="text-amber-400 animate-in fade-in zoom-in-50 duration-300">
+                {language === 'ur' ? 'کاپی ہو گیا!' : 'Copied!'}
+              </span>
+            ) : (
+              <>
+                <span>{language === 'ur' ? 'لنک کاپی کریں' : 'Copy URL'}</span>
+                <span className="text-xs">🔗</span>
+              </>
+            )}
+          </button>
         </div>
 
-        {/* Actions Section */}
-        <div className="flex items-center gap-3">
+        {/* Actions Section - Right Side */}
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Language Toggle Button */}
+          <button 
+            onClick={toggleLanguage}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all border border-white/5 shadow-sm active:scale-95 group"
+            title={language === 'ur' ? "Switch to English" : "اردو میں بدلیں"}
+          >
+            <span className="text-amber-400 group-hover:rotate-12 transition-transform duration-300">🌐</span>
+            <span className={`text-white text-xs md:text-sm font-black tracking-wide ${language === 'en' ? 'urdu' : 'font-sans'}`}>
+              {language === 'ur' ? 'English' : 'اردو'}
+            </span>
+          </button>
+
+          {/* User Auth Section */}
           {user ? (
             <div className="flex items-center gap-3">
-               <div className={`hidden md:flex flex-col items-end text-[10px] text-white/60 font-bold ${language === 'ur' ? 'urdu' : ''}`}>
-                  <span>{language === 'ur' ? 'خوش آمدید' : 'Welcome'}</span>
-                  <span className="text-amber-400 text-xs">{user.email?.split('@')[0]}</span>
-               </div>
                <button 
                  onClick={() => signOut()}
-                 className={`px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 ${language === 'ur' ? 'urdu' : ''}`}
-                 title={language === 'ur' ? "سائن آؤٹ کریں" : "Sign Out"}
+                 className={`hidden md:flex px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 items-center gap-2 ${language === 'ur' ? 'urdu' : ''}`}
                >
                  <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Log Out'}</span>
                  <span className="text-lg">🚪</span>
@@ -85,26 +126,16 @@ const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button 
               onClick={onLoginClick}
-              className={`px-5 py-2 bg-amber-500 hover:bg-amber-400 text-[#044434] font-bold rounded-xl text-sm md:text-base transition-all shadow-lg active:scale-95 ${language === 'ur' ? 'urdu' : ''}`}
+              className={`px-4 md:px-5 py-2 bg-amber-500 hover:bg-amber-400 text-[#044434] font-bold rounded-xl text-sm md:text-base transition-all shadow-lg active:scale-95 ${language === 'ur' ? 'urdu' : ''}`}
             >
               {language === 'ur' ? 'لاگ ان' : 'Login'}
             </button>
           )}
 
-          {/* Language Toggle Button */}
-          <button 
-            onClick={toggleLanguage}
-            className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] md:text-xs font-bold transition-all active:scale-95"
-            title={language === 'ur' ? "English میں دیکھیں" : "اردو میں دیکھیں"}
-          >
-            {language === 'ur' ? 'English' : 'اردو'}
-          </button>
-
           {/* Theme Toggle Button */}
           <button 
             onClick={toggleTheme}
             className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all border border-white/5 shadow-sm active:scale-95 flex items-center justify-center transition-all duration-300"
-            aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             {isDarkMode ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-400 animate-in zoom-in-50 duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -12,6 +12,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onSearch, loading, user, language }) => {
+  const isUrdu = language === 'ur';
+
   return (
     <header className="bg-[#044434] dark:bg-emerald-950 text-white py-8 md:py-20 px-4 shadow-xl transition-colors duration-300 relative overflow-hidden">
       {/* User Status Bar in Header */}
@@ -39,10 +41,19 @@ const Header: React.FC<HeaderProps> = ({ onSearch, loading, user, language }) =>
 
       <div className="max-w-6xl mx-auto flex flex-col items-center relative z-10">
         
-        {/* Decorative thin line at top */}
-        <div className="mb-4 flex items-center justify-center opacity-50">
-          <div className="w-12 h-0.5 bg-amber-500 rounded-full"></div>
-        </div>
+        {/* Important Notice for confusion relief */}
+        {!user && (
+          <div className="mb-6 animate-pulse">
+            <div className={`px-4 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-amber-400 text-[10px] md:text-xs font-bold flex items-center gap-2 ${isUrdu ? 'flex-row-reverse urdu' : ''}`}>
+              <span>📢</span>
+              <span>
+                {isUrdu 
+                  ? 'نوٹ: اس ایپ کے لیے کسی خاص گوگل یا AI Studio اکاؤنٹ کی ضرورت نہیں ہے۔' 
+                  : 'Note: No specialized Google or AI Studio account required.'}
+              </span>
+            </div>
+          </div>
+        )}
 
         <h2 className={`text-xl md:text-4xl font-bold text-white mb-8 md:mb-12 drop-shadow-md text-center transition-all duration-300 ${language === 'ur' ? 'urdu' : ''}`}>
           {language === 'ur' ? 'لسانی تجزیہ کار' : 'Linguistic Analyzer'}
